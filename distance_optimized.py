@@ -72,6 +72,30 @@ class Robot:
             return float('inf')  # Task is unreachable
         return pickup_cost + delivery_cost
 
+    def calculate_total_distance(self, obstacles, grid_size):
+        """
+        Calculates the total distance the robot would travel to complete all its tasks,
+        moving from one task's delivery point to the next task's pickup point.
+        """
+        total_distance = 0
+        current_position = self.current_pos
+
+        for task in self.tasks:
+            # Calculate distance from the current position to the task's pickup location
+            pickup_cost = self.calculate_path_cost(current_position, task[0], obstacles, grid_size)
+            if pickup_cost is None:
+                continue  # Skip this task if the path to the pickup is blocked
+
+            # Calculate distance from the task's pickup location to its delivery location
+            delivery_cost = self.calculate_path_cost(task[0], task[1], obstacles, grid_size)
+            if delivery_cost is None:
+                continue  # Skip this task if the path from the pickup to the delivery is blocked
+
+            total_distance += pickup_cost + delivery_cost
+            current_position = task[1]  # Update current position to the delivery location of the current task
+
+        return total_distance
+
     def calculate_path_cost(self, start, target, obstacles, grid_size):
         """
         Reuses the calculate_path method to find a path and then calculates its cost.
@@ -167,12 +191,50 @@ class WarehouseSimulation:
         pygame.display.set_caption('Warehouse Simulation')
         self.obstacles = self.generate_obstacles(num_obstacles)
         self.robots = [Robot((np.random.randint(0, grid_size), np.random.randint(0, grid_size))) for _ in range(num_robots)]
-        self.assign_tasks(num_robots)
+        self.assign_tasks_globally(num_robots)
 
     def generate_obstacles(self, num_obstacles):
         # Generates obstacle positions
         return [((np.random.randint(0, self.grid_size - 3), np.random.randint(0, self.grid_size - 3)),
                  np.random.randint(1, 4), np.random.randint(1, 4)) for _ in range(num_obstacles)]
+
+    def assign_tasks_globally(self, num_tasks):
+        tasks = []
+        for _ in range(num_tasks):
+            pickup = self.find_valid_position()
+            delivery = self.find_valid_position()
+            color = self.generate_unique_color([])
+            tasks.append((pickup, delivery, color))
+
+        # Pre-calculate the total cost for the system before assignment
+        initial_total_cost = sum(robot.calculate_total_distance(self.obstacles, self.grid_size) for robot in self.robots)
+
+        # Iterate over tasks to assign them to the robots
+        for task in tasks:
+            assignment_options = []
+            for robot in self.robots:
+                robot.tasks.append(task)  # Temporarily assign task to robot
+                new_total_cost = sum(r.calculate_total_distance(self.obstacles, self.grid_size) for r in self.robots)
+                cost_increase = new_total_cost - initial_total_cost
+                assignment_options.append((cost_increase, robot, task))
+                robot.tasks.pop()  # Remove temporary task assignment
+
+
+            # Assign the task to the robot that results in the smallest cost increase
+            best_assignment = min(assignment_options, key=lambda x: x[0])
+            best_assignment[1].tasks.append(best_assignment[2])  # Add task to the best robot's task list
+
+            # Update the initial total cost to reflect the new assignment
+            initial_total_cost += best_assignment[0]
+
+
+
+
+    def find_valid_position(self):
+        while True:
+            position = (np.random.randint(0, self.grid_size), np.random.randint(0, self.grid_size))
+            if not self.is_position_in_obstacle(position):
+                return position
 
     def assign_tasks(self, num_tasks):
         used_colors = []  # Keep track of used colors for tasks
