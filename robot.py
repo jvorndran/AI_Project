@@ -5,7 +5,7 @@ import random
 class Robot:
     def __init__(self, start_pos):
         self.current_pos = np.array(start_pos)
-        self.tasks = []  # A list of tasks (tuples of numpy arrays for pickup and delivery)
+        self.tasks = []
         self.on_task = False
         self.current_task_index = 0
 
@@ -23,11 +23,13 @@ class Robot:
                 if np.array_equal(self.current_pos, current_task[0]):
                     self.on_task = True
                 elif np.array_equal(self.current_pos, current_task[1]):
+                    self.tasks.pop(self.current_task_index)  # Task completed
+                    self.on_task = False
+
                     if self.current_task_index < len(self.tasks) - 1:
                         self.current_task_index += 1
                         self.on_task = False
                     else:
-                        self.tasks.pop(self.current_task_index)  # Task completed
                         if self.tasks:
                             self.current_task_index = 0  # Move to next task
                         else:
@@ -109,7 +111,7 @@ class Robot:
 
     def calculate_path(self, target, obstacles, grid_size):
         def heuristic(a, b):
-            # Manhattan distance on a square grid
+            # Manhattan distance
             return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
         def get_neighbors(pos):

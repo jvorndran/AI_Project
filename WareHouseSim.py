@@ -21,7 +21,7 @@ class WarehouseSimulation:
                  np.random.randint(1, 4), np.random.randint(1, 4)) for _ in range(num_obstacles)]
 
     def assign_tasks(self, num_tasks):
-        used_colors = []  # Keep track of used colors for tasks
+        used_colors = []  # Keep track of used colors
         for _ in range(num_tasks):
             while True:
                 pickup = (np.random.randint(0, self.grid_size), np.random.randint(0, self.grid_size))
@@ -56,30 +56,34 @@ class WarehouseSimulation:
         running = True
         optimize_interval = 100
         tick_count = 0
+        paused = False
 
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.KEYDOWN:  # A key has been pressed
+                    if event.key == pygame.K_SPACE:  # The space bar was pressed
+                        paused = not paused
 
             self.screen.fill((255, 255, 255))  # Fill screen with white
             self.draw_grid()
             self.draw_obstacles()
             self.place_tasks()
 
-            # Call the move method for each robot
-            for robot in self.robots:
-                robot.move(self.obstacles, self.grid_size)
+            if not paused:
+                for robot in self.robots:
+                    robot.move(self.obstacles, self.grid_size)
+
+                if tick_count % optimize_interval == 0:
+                    for robot in self.robots:
+                        robot.run_lns(self.obstacles, self.grid_size, iterations=10)
+
+                tick_count += 1
 
             self.animate_robots()
-            pygame.display.flip()  # Update the full display Surface to the screen
-            clock.tick(10)  # Control the framerate to slow down the movements
-
-            if tick_count % optimize_interval == 0:
-                for robot in self.robots:
-                    robot.run_lns(self.obstacles, self.grid_size, iterations=10)
-
-            tick_count += 1
+            pygame.display.flip()
+            clock.tick(10)  # Framerate
 
 
     def draw_grid(self):
@@ -139,7 +143,6 @@ class WarehouseSimulation:
                           self.cell_size)
             pygame.draw.rect(self.screen, (0, 0, 255), robot_rect)  # Draw robot in blue
 
-            # Optionally, draw a line representing the path for the robot's current task to the pickup/delivery points
             if robot.tasks:
                 current_task = robot.tasks[robot.current_task_index]
                 pickup_pos, delivery_pos, color = current_task
