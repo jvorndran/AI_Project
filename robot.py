@@ -41,10 +41,13 @@ class Robot:
         # Destroy Phase: Randomly remove a percentage of tasks
         num_destroy = int(len(self.tasks) * destroy_ratio)
         destroyed_tasks = random.sample(self.tasks, num_destroy)
-        for task in destroyed_tasks:
-            self.tasks.remove(task)
+        for task_to_remove in destroyed_tasks:
+            for i, existing_task in enumerate(self.tasks):
+                if all(np.array_equal(et, tt) for et, tt in zip(existing_task, task_to_remove)):
+                    del self.tasks[i]
+                    break  # Break since we found and removed the specific task
 
-        # Repair Phase: Reassign tasks based on marginal cost
+            # Repair Phase: Reassign tasks based on marginal cost
         for task in destroyed_tasks:
             self.assign_marginal_cost_task([task], obstacles, grid_size)
 
